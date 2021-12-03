@@ -10,20 +10,22 @@ func main() {
     router := gin.Default()
     router.SetTrustedProxies([]string{"192.168.43.26"})
 
-    router.GET("/hello", func(c *gin.Context){
-        c.JSON(http.StatusOK, gin.H{
-            "name": "Reshi",
-            "bio": "An Internet marketter",
-            "content": "Lorem ipsum dolor sit amet, qui minim labore adipisicing minim sint cillum sint consectetur cupidatat.",
-        })
-    })
-
-    router.GET("/", func(c *gin.Context){
-        c.JSON(http.StatusOK, gin.H{
-            "name": "Reshi Mahendra",
-            "Bio": "Spearfisher Man",
-        })
-    })
-
+    router.GET("/hello", HelloHandler) 
+    router.GET("/", RootHandler)
     router.Run(":3888")
+}
+
+func RootHandler(c *gin.Context) {
+    c.JSON(http.StatusOK, gin.H{
+        "name": "Reshi Mahendra",
+        "Bio": "Spearfisher Man",
+    })
+}
+
+func HelloHandler(c *gin.Context) {
+    c.JSON(http.StatusOK, gin.H{
+        "name": "Reshi",
+        "bio": "An Internet marketter",
+        "content": "Lorem ipsum dolor sit amet, qui minim labore adipisicing minim sint cillum sint consectetur cupidatat.",
+    })   
 }
