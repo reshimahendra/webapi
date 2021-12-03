@@ -27,23 +27,19 @@ func RootHandler(c *gin.Context) {
     })
 }
 
-func CheckError(e error) {
-    if e != nil {
-        log.Panic(e)
-    }
-}
 
 func HelloHandler(c *gin.Context) {
     c.JSON(http.StatusOK, gin.H{
         "name": "Reshi",
         "bio": "An Internet marketter",
         "content": "Lorem ipsum dolor sit amet, qui minim labore adipisicing minim sint cillum sint consectetur cupidatat.",
-    })   
+    })
 }
 
 func BookDetailHandler(c *gin.Context) {
     c.JSON(http.StatusOK, gin.H{
-        "id" : c.Param("id"),
+        "id": c.Param("id"),
+        "name" : c.Param("name"),
         "title": c.Param("title"),
     })
 }
@@ -56,23 +52,25 @@ func SearchQueryHandler(c *gin.Context) {
 }
 
 type BookInput struct{
-    Title string
-    Price int
-    SubTitle string `json:"sub_title"`      // Jika nama field di 'Struct' dan nama field JSON beda
-                                            // maka secara implisit harus dideklarasikan setelah
-                                            // deklarasi field di struct sehingga saat dipanggil melalui
-                                            // context "ShouldBindJSON", perbedaan nama field
-                                            // bisa disinkronisasi
+    Title string `json:"title" binding:"required"`
+    Price int `json:"price" binding:"required,number,gt=0"`
+    SubTitle string `json:"sub_title" binding:"required"`
 }
 
 func BookPostHandler(c *gin.Context) {
     var bookInput BookInput
     err := c.ShouldBindJSON(&bookInput)
-    CheckError(err)
+    if err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{
+            "error": "Something not right",
+        })
+        log.Println(err)
+        return
+    }   
 
     c.JSON(http.StatusOK, gin.H{
         "title": bookInput.Title,
         "price": bookInput.Price,
-        "sub_title": bookInput.SubTitle,    // input nama field "struct" dan field "JSON" berbeda
+        "sub_title": bookInput.SubTitle,
     })
 }
