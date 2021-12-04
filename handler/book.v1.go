@@ -3,7 +3,7 @@ package handler
 import (
 	"fmt"
 	"net/http"
-    "webapi/entry"
+    "webapi/moduls"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
@@ -40,7 +40,7 @@ func SearchQueryHandler(c *gin.Context) {
 }
 
 func BookPostHandler(c *gin.Context) {
-    var bookInput entry.BookInput
+    var bookInput moduls.BookInput
     err := c.ShouldBindJSON(&bookInput)
 
     eMsg := []string{}
