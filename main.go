@@ -62,11 +62,17 @@ type BookInput struct{
 func BookPostHandler(c *gin.Context) {
     var bookInput BookInput
     err := c.ShouldBindJSON(&bookInput)
+
+    eMsg := []string{}
     if err != nil {
         for _, e := range err.(validator.ValidationErrors) {
-            eMsg := fmt.Sprintf("Error on field '%s', condition: '%s'.", e.Field(), e.ActualTag())
-            c.JSON(http.StatusBadRequest, eMsg)
+            msg := fmt.Sprintf("Error on field '%s', condition: '%s'.", e.Field(), e.ActualTag())
+            eMsg = append(eMsg, msg)
         }
+
+        c.JSON(http.StatusBadRequest, gin.H{
+            "error": eMsg,
+        })
         return
     }   
 

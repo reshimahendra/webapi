@@ -7,6 +7,7 @@ Belajar [golang][1] dengan [Gin][2] untuk membuat Web API.
 01. [URL Route](https://github.com/reshimahendra/webapi/tree/01.route)
 02. [API Get & Post](https://github.com/reshimahendra/webapi/tree/03.post)
 03. [HTTP Post & JSON Validation](https://github.com/reshimahendra/webapi/tree/04.http-post-and-json-validation)
+04. [Error Validation](https://github.com/reshimahendra/webapi/tree/05.error-validation)
 
 Rujukan yang sangat membantu:
 01. [Golang website][1]
