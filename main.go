@@ -25,6 +25,9 @@ func main() {
     v2.POST("/books", handler.BookPostHandler2)
     v2.POST("/books2", handler.CreateBookHandler)
     v2.GET("/books", handler.ShowBooksHandler)
+    v2.GET("/book/:id", handler.BookDetailHandlerv2)
+    v2.PUT("/book/:id", handler.BookUpdateHandler)
+    v2.DELETE("/book/:id", handler.BookDeleteHandler)
     v2.GET("/book", handler.SearchBookHandler)
 
     router.Run(":3888")

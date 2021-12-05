@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"strconv"
+	"time"
 	"webapi/moduls"
 
 	"github.com/gin-gonic/gin"
@@ -89,60 +91,101 @@ func SearchBookHandler(c *gin.Context) {
         })
     }
 }
-// func SearchBookHandler(c *gin.Context) {
-//     // var book moduls.Book
-//     param := c.Request.URL.Query()
-//
-//
-//     var qCondition []string
-//     var qValue string
-//     var sqlCommand string
-//     n := ""
-//     for i, value := range param {
-//         sqlCommand = fmt.Sprintf("%s, %s", sqlCommand, i)
-//         qValue = ""
-//         if len(value) > 1 {
-//             log.Println("Length i more than 1", i)
-//             switch i {
-//             case "name","description":
-//                 for _, n = range value {
-//                     qValue = fmt.Sprintf("%s, %q", qValue,n)
-//                 }
-//                 qCondition = append(qCondition, fmt.Sprintf("%s IN (%s)", i, qValue))
-//                 fmt.Println("%s IN (%s)", i, qValue)
-//             case "id", "price", "rating":
-//                 for _, n = range value {
-//                     qValue = fmt.Sprintf("%s, %d", qValue,n)
-//                 }
-//                 fmt.Println("%s IN (%s)", i, qValue)
-//                 qCondition = append(qCondition, fmt.Sprintf("%s IN (%s)", i, qValue))
-//             default: log.Println(qCondition)
-//                 fmt.Println("%s IN (%s)", i, qValue)
-//             }
-//         } else {
-//             switch i {
-//                 case "name": qCondition = append(qCondition, fmt.Sprintf("%s = %q", i, value[0]))
-//                 case "id","price","rating": qCondition = append(qCondition, fmt.Sprintf("%s = %d", i, value[0]))
-//                 default: log.Println(qCondition)
-//             }
-//         }
-//
-//     }
-//     log.Println(sqlCommand)
-//     log.Println("==================================================")
-//
-//     // // construct the sqlCommand
-//     if len(qCondition) > 1 {
-//         for k, l := range qCondition {
-//             log.Println("k: %s l: %s", k, l)
-//             if k == 0 {
-//                 sqlCommand = l
-//             } else {
-//                 sqlCommand = fmt.Sprintf("%s AND %s", sqlCommand, l)
-//             }
-//         }
-//     } //else {
-//     //     sqlCommand = qCondition[0]
-//     // }
-//     log.Println(param)
-// }
+
+func BookDetailHandlerv2(c *gin.Context) {
+    var b moduls.Book
+    bookID, err := strconv.Atoi(c.Param("id"))
+    if err != nil || bookID <= 0 {
+        c.JSON(http.StatusBadRequest, gin.H{
+            "error": "Data not found",
+        })
+        return
+    }
+
+    err = moduls.DB.Debug().Where("id = ?", bookID).First(&b).Error
+    if err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{
+            "error": "Error while finding data",
+        })
+        return
+    }
+
+    c.JSON(http.StatusOK, b)
+}
+
+func BookUpdateHandler(c *gin.Context) {
+    var b moduls.Book
+
+    bookID, err := strconv.Atoi(c.Param("id"))
+    if err != nil || bookID <= 0 {
+        c.JSON(http.StatusBadRequest, gin.H{
+            "error": "Data not found",
+        })
+        return
+    }
+
+    err = c.ShouldBindJSON(&b)
+    if err != nil {
+        eMsg := []string{}
+        for _, e := range err.(validator.ValidationErrors) {
+            msg := fmt.Sprintf("Field error :'%s', condition: '%s'", e.Field(), e.ActualTag())
+            eMsg = append(eMsg, msg)
+        }
+
+        c.JSON(http.StatusBadRequest, gin.H{
+            "error": eMsg,
+        })
+        return
+    }
+
+    // Update sesuai dengan nilai (where) book id
+    b.ID = bookID
+    b.UpdatedAt = time.Now()
+    moduls.DB.Updates(&b)
+
+    // kirim data json perihal data terkait ke client
+    err = moduls.DB.First(&b, bookID).Error
+    if err != nil {
+        c.JSON(http.StatusBadRequest, gin.H{
+            "error": "Data not found",
+        })
+        return
+    }
+
+    // return the book data
+    c.JSON(http.StatusOK, b)
+}
+
+func BookDeleteHandler(c *gin.Context) {
+    var b moduls.Book
+
+    bookID, err := strconv.Atoi(c.Param("id"))
+    if err != nil || bookID <= 0 {
+        c.JSON(http.StatusBadRequest, gin.H{
+            "error":"Data not found",
+        })
+        return
+    }
+
+    moduls.DB.Where("deleted_at IS NULL AND id = ?", bookID).First(&b)
+    if b.ID != bookID {
+        c.JSON(http.StatusOK, gin.H{
+            "info": fmt.Sprintf("Book %d already deleted. Operation canceled.", bookID),
+        })
+        return
+    }
+
+    err = moduls.DB.Delete(&b, bookID).Error
+    if err != nil {
+        c.JSON(http.StatusNoContent, gin.H{
+            "error": "Data not found",
+        })
+        return
+    }
+
+    c.JSON(http.StatusOK, gin.H{
+        "book": fmt.Sprintf("Book %d has been deleted.", bookID),
+    })
+
+    
+}
