@@ -1,14 +1,24 @@
 package main
 
 import (
-	"webapi/moduls"
 	"webapi/handler"
+	"webapi/moduls"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/driver/sqlite"
+	"gorm.io/gorm"
 )
 
 func main() {
-    moduls.DB_Conn()
+    db, err := gorm.Open(sqlite.Open("test.db"), &gorm.Config{})
+    if err != nil {
+        panic("Failed to connect to DB")
+    }
+
+    bookRepo    := moduls.NewRepo(db)
+    bookSvc     := moduls.NewService(bookRepo)
+    bookHandler := handler.NewBookHandler(bookSvc)
+
     router := gin.Default()
     router.SetTrustedProxies([]string{"192.168.43.26"})
 
@@ -22,13 +32,13 @@ func main() {
     v1.GET("/", handler.RootHandler)
 
     v2 := router.Group("/v2")
-    v2.POST("/books", handler.BookPostHandler2)
-    v2.POST("/books2", handler.CreateBookHandler)
-    v2.GET("/books", handler.ShowBooksHandler)
-    v2.GET("/book/:id", handler.BookDetailHandlerv2)
-    v2.PUT("/book/:id", handler.BookUpdateHandler)
-    v2.DELETE("/book/:id", handler.BookDeleteHandler)
-    v2.GET("/book", handler.SearchBookHandler)
+    v2.POST("/books", bookHandler.BookPostHandler2)
+    v2.POST("/book-add", bookHandler.CreateBookHandler)
+    v2.GET("/books", bookHandler.ShowBooksHandler)
+    v2.GET("/book/:id", bookHandler.BookDetailHandlerv2)
+    v2.PUT("/book/:id", bookHandler.BookUpdateHandler)
+    v2.DELETE("/book/:id", bookHandler.BookDeleteHandler)
+    v2.GET("/book", bookHandler.SearchBookHandler)
 
     router.Run(":3888")
 }

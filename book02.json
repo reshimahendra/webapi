@@ -1,5 +1,6 @@
 {
     "title":     "Bu Kek Siansu",
-    "sub_title": "Cerita silat klasik bu kek siansu berkisah tentang perjalanan sintong menjadi pendekar tak tertandingi",
-    "price":     7500
+    "description": "Cerita silat klasik bu kek siansu berkisah tentang perjalanan sintong menjadi pendekar tak tertandingi",
+    "price":     7500,
+    "rating": 5
 }
