@@ -19,31 +19,6 @@ func NewBookHandler(bookService moduls.Service) *bookHandler {
     return &bookHandler{bookService}
 }
 
-func (h *bookHandler) BookPostHandler2(c *gin.Context) {
-    var book moduls.BookRequest
-    err := c.ShouldBindJSON(&book)
-
-    if err != nil {
-        eMsg := []string{} 
-        for _,e := range err.(validator.ValidationErrors) {
-            msg := fmt.Sprintf("Error on field '%s', condition: '%s'", e.Field(), e.ActualTag)
-            eMsg = append(eMsg, msg)
-        }
-
-        c.JSON(http.StatusBadRequest, gin.H{
-            "error": eMsg,
-        })
-        return
-    }
-
-    c.JSON(http.StatusOK, gin.H{
-        "title": book.Title,
-        "price": book.Price,
-        "description": book.Description,
-        "rating": book.Rating,
-    })
-}
-
 func (h *bookHandler) CreateBookHandler(c *gin.Context) {
     var bookRequest moduls.BookRequest
 
@@ -71,26 +46,31 @@ func (h *bookHandler) CreateBookHandler(c *gin.Context) {
         })
         return
     }
+
+    bookResponse := bookToResponse(book)
+
     c.JSON(http.StatusOK, gin.H{
-        "title": book.Title,
-        "description": book.Description,
-        "price": book.Price,
-        "rating": book.Rating,
+        "data": bookResponse, 
     })
 }
 
 func (h *bookHandler) ShowBooksHandler(c *gin.Context) {
     books, err := h.service.All()
 
-    log.Println("Masuk show all")
     if err != nil {
         c.JSON(http.StatusNoContent, gin.H{
             "error":"Error retrieving data",
         })
         return
     }
+    var bookResponse []moduls.BookResponse
+    for _, b := range books {
+        bookResponse = append(bookResponse, bookToResponse(b))
+    }
 
-    c.JSON(http.StatusOK, books)
+    c.JSON(http.StatusOK, gin.H{
+        "data": bookResponse,
+    })
 }
 
 func (h *bookHandler) SearchBookHandler(c *gin.Context) {
@@ -104,7 +84,10 @@ func (h *bookHandler) SearchBookHandler(c *gin.Context) {
             log.Println("Ada kesalahan pencarian data")
             return
         } 
-        c.JSON(http.StatusOK, book)
+        bookResponse := bookToResponse(book)
+        c.JSON(http.StatusOK, gin.H{
+            "data": bookResponse,
+        })
     } else {
         c.JSON(http.StatusNotFound, gin.H{
             "error": "No title field data",
@@ -129,7 +112,11 @@ func (h *bookHandler) BookDetailHandlerv2(c *gin.Context) {
         return
     }
 
-    c.JSON(http.StatusOK, book)
+    bookResponse := bookToResponse(book)
+
+    c.JSON(http.StatusOK, gin.H{
+        "data": bookResponse,
+    })
 }
 
 func (h *bookHandler) BookUpdateHandler(c *gin.Context) {
@@ -158,9 +145,6 @@ func (h *bookHandler) BookUpdateHandler(c *gin.Context) {
     }
 
     // Update sesuai dengan nilai (where) book id
-    // b.ID = bookID
-    // b.UpdatedAt = time.Now()
-    // moduls.DB.Updates(&b)
     b, err := h.service.Update (bookID, bookRequest)
 
     // kirim data json perihal data terkait ke client
@@ -170,9 +154,15 @@ func (h *bookHandler) BookUpdateHandler(c *gin.Context) {
         })
         return
     }
+    // Karena struct B tidak berisi ID, maka perlu ditambahkan secara manual
+    b.ID = bookID
+
+    bookResponse := bookToResponse(b)
 
     // return the book data
-    c.JSON(http.StatusOK, b)
+    c.JSON(http.StatusOK, gin.H{
+        "data": bookResponse,
+    })
 }
 
 func (h *bookHandler) BookDeleteHandler(c *gin.Context) {
@@ -191,13 +181,6 @@ func (h *bookHandler) BookDeleteHandler(c *gin.Context) {
         })
         return
     }
-    // moduls.DB.Where("deleted_at IS NULL AND id = ?", bookID).First(&b)
-    // if b.ID != bookID {
-    //     c.JSON(http.StatusOK, gin.H{
-    //         "info": fmt.Sprintf("Book %d already deleted. Operation canceled.", bookID),
-    //     })
-    //     return
-    // }
 
     err = h.service.Delete(bookID)
     if err != nil {
@@ -210,6 +193,14 @@ func (h *bookHandler) BookDeleteHandler(c *gin.Context) {
     c.JSON(http.StatusOK, gin.H{
         "book": fmt.Sprintf("Book %d has been deleted.", bookID),
     })
+}
 
-    
+func bookToResponse(b moduls.Book) moduls.BookResponse{
+    return moduls.BookResponse{
+        ID:          b.ID,
+        Title:       b.Title,
+        Description: b.Description,
+        Price:       b.Price,
+        Rating:      b.Rating,
+    }
 }
