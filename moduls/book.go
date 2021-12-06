@@ -21,7 +21,7 @@ import (
 
 type Table interface {
     First()
-    Next()
+    Last()
     All()
 }
 
