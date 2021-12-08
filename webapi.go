@@ -3,6 +3,7 @@ package main
 import (
 	"webapi/handler"
 	"webapi/moduls"
+    "webapi/middleware"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/driver/sqlite"
@@ -20,6 +21,7 @@ func main() {
     bookHandler := handler.NewBookHandler(bookSvc)
 
     router := gin.Default()
+    router.Use(middleware.CORSMiddleware())
     router.SetTrustedProxies([]string{"192.168.43.26"})
 
     // membuat api versioning dengan nama v1 (api version 1)
