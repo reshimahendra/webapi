@@ -1,84 +1,35 @@
 package main
 
 import (
-	"encoding/json"
-	"fmt"
-	"net/http"
+	"webapi/moduls"
+	"webapi/handler"
 
 	"github.com/gin-gonic/gin"
-	"github.com/go-playground/validator/v10"
 )
 
 func main() {
+    moduls.DB_Conn()
     router := gin.Default()
     router.SetTrustedProxies([]string{"192.168.43.26"})
 
-    router.GET("/hello", HelloHandler) 
-    router.GET("/book/:id/:title", BookDetailHandler)
-    router.POST("/books", BookPostHandler)
-    router.GET("/search", SearchQueryHandler)
-    router.GET("/", RootHandler)
+    // membuat api versioning dengan nama v1 (api version 1)
+    v1 := router.Group("/v1")
+
+    v1.GET("/hello", handler.HelloHandler) 
+    v1.GET("/book/:id/:title", handler.BookDetailHandler)
+    v1.POST("/books", handler.BookPostHandler)
+    // v1.GET("/search", handler.SearchQueryHandler)
+    v1.GET("/", handler.RootHandler)
+
+    v2 := router.Group("/v2")
+    v2.POST("/books", handler.BookPostHandler2)
+    v2.POST("/books2", handler.CreateBookHandler)
+    v2.GET("/books", handler.ShowBooksHandler)
+    v2.GET("/book/:id", handler.BookDetailHandlerv2)
+    v2.PUT("/book/:id", handler.BookUpdateHandler)
+    v2.DELETE("/book/:id", handler.BookDeleteHandler)
+    v2.GET("/book", handler.SearchBookHandler)
 
     router.Run(":3888")
 }
 
-func RootHandler(c *gin.Context) {
-    c.JSON(http.StatusOK, gin.H{
-        "name": "Reshi Mahendra",
-        "Bio": "Spearfisher Man",
-    })
-}
-
-
-func HelloHandler(c *gin.Context) {
-    c.JSON(http.StatusOK, gin.H{
-        "name": "Reshi",
-        "bio": "An Internet marketter",
-        "content": "Lorem ipsum dolor sit amet, qui minim labore adipisicing minim sint cillum sint consectetur cupidatat.",
-    })
-}
-
-func BookDetailHandler(c *gin.Context) {
-    c.JSON(http.StatusOK, gin.H{
-        "id": c.Param("id"),
-        "name" : c.Param("name"),
-        "title": c.Param("title"),
-    })
-}
-
-func SearchQueryHandler(c *gin.Context) {
-    c.JSON(http.StatusOK, gin.H{
-        "q": c.Query("q"),
-        "price": c.Query("price"),
-    })
-}
-
-type BookInput struct{
-    Title string `json:"title" binding:"required"`
-    Price json.Number `json:"price" binding:"required,number,gt=0"`
-    SubTitle string `json:"sub_title" binding:"required"`
-}
-
-func BookPostHandler(c *gin.Context) {
-    var bookInput BookInput
-    err := c.ShouldBindJSON(&bookInput)
-
-    eMsg := []string{}
-    if err != nil {
-        for _, e := range err.(validator.ValidationErrors) {
-            msg := fmt.Sprintf("Error on field '%s', condition: '%s'.", e.Field(), e.ActualTag())
-            eMsg = append(eMsg, msg)
-        }
-
-        c.JSON(http.StatusBadRequest, gin.H{
-            "error": eMsg,
-        })
-        return
-    }   
-
-    c.JSON(http.StatusOK, gin.H{
-        "title": bookInput.Title,
-        "price": bookInput.Price,
-        "sub_title": bookInput.SubTitle,
-    })
-}
