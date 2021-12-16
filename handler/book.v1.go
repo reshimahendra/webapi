@@ -40,8 +40,8 @@ func SearchQueryHandler(c *gin.Context) {
 }
 
 func BookPostHandler(c *gin.Context) {
-    var bookInput moduls.BookInput
-    err := c.ShouldBindJSON(&bookInput)
+    var bookRequest moduls.BookRequest
+    err := c.ShouldBindJSON(&bookRequest)
 
     eMsg := []string{}
     if err != nil {
@@ -57,8 +57,9 @@ func BookPostHandler(c *gin.Context) {
     }   
 
     c.JSON(http.StatusOK, gin.H{
-        "title": bookInput.Title,
-        "price": bookInput.Price,
-        "sub_title": bookInput.SubTitle,
+        "title": bookRequest.Title,
+        "price": bookRequest.Price,
+        "description": bookRequest.Description,
+        "rating": bookRequest.Rating,
     })
 }

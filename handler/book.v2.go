@@ -5,42 +5,24 @@ import (
 	"log"
 	"net/http"
 	"strconv"
-	"time"
 	"webapi/moduls"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 )
 
-func BookPostHandler2(c *gin.Context) {
-    var book moduls.BookInput
-    err := c.ShouldBindJSON(&book)
-
-    if err != nil {
-        eMsg := []string{} 
-        for _,e := range err.(validator.ValidationErrors) {
-            msg := fmt.Sprintf("Error on field '%s', condition: '%s'", e.Field(), e.ActualTag)
-            eMsg = append(eMsg, msg)
-        }
-
-        c.JSON(http.StatusBadRequest, gin.H{
-            "error": eMsg,
-        })
-        return
-    }
-
-    c.JSON(http.StatusOK, gin.H{
-        "title": book.Title,
-        "sub_title": book.SubTitle,
-        "price": book.Price,
-        "description": book.Description,
-        "release_date": book.Release_date,
-    })
+type bookHandler struct {
+    service moduls.Service
 }
 
-func CreateBookHandler(c *gin.Context) {
-    var book moduls.Book
-    err := c.ShouldBindJSON(&book)
+func NewBookHandler(bookService moduls.Service) *bookHandler {
+    return &bookHandler{bookService}
+}
+
+func (h *bookHandler) CreateBookHandler(c *gin.Context) {
+    var bookRequest moduls.BookRequest
+
+    err := c.ShouldBindJSON(&bookRequest)
 
     if err != nil {
         eMsg := []string{}
@@ -56,35 +38,56 @@ func CreateBookHandler(c *gin.Context) {
         return
     }
 
-    // Insert row into table
-    moduls.DB.Create(&book)
+    book, err := h.service.Create(bookRequest)
+    if err != nil {
+        log.Println("Error occur while creating new record")
+        c.JSON(http.StatusBadRequest, gin.H{
+            "error":"Error while creating record",
+        })
+        return
+    }
+
+    bookResponse := bookToResponse(book)
+
     c.JSON(http.StatusOK, gin.H{
-        "title": book.Title,
-        "description": book.Description,
-        "price": book.Price,
-        "rating": book.Rating,
+        "data": bookResponse, 
     })
 }
 
-func ShowBooksHandler(c *gin.Context) {
-    var book moduls.Book
-    books := book.All()
+func (h *bookHandler) ShowBooksHandler(c *gin.Context) {
+    books, err := h.service.All()
 
-    c.JSON(http.StatusOK, books)
+    if err != nil {
+        c.JSON(http.StatusNoContent, gin.H{
+            "error":"Error retrieving data",
+        })
+        return
+    }
+    var bookResponse []moduls.BookResponse
+    for _, b := range books {
+        bookResponse = append(bookResponse, bookToResponse(b))
+    }
+
+    c.JSON(http.StatusOK, gin.H{
+        "data": bookResponse,
+    })
 }
 
-func SearchBookHandler(c *gin.Context) {
-    var book moduls.Book
-    // var judul string;
+func (h *bookHandler) SearchBookHandler(c *gin.Context) {
+    log.Println(c.Request.URL.Query().Get("id"))
+    if c.Request.URL.Query().Has("id") {
+        id, _ := strconv.Atoi(c.Request.URL.Query().Get("id"))
+        book, err := h.service.FindByID(id)
 
-    log.Println(c.Request.URL.Query().Get("title"))
-    if c.Request.URL.Query().Has("title") {
-        e := moduls.DB.Debug().Where("title = ?", c.Request.URL.Query().Get("title")).Find(&book).Error
-        if e != nil {
+        // e := moduls.DB.Debug().Where("title = ?", c.Request.URL.Query().Get("title")).Find(&book).Error
+        if err!= nil {
             log.Println("Ada kesalahan pencarian data")
             return
         } 
-        c.JSON(http.StatusOK, book)
+        bookResponse := bookToResponse(book)
+        c.JSON(http.StatusOK, gin.H{
+            "data": bookResponse,
+        })
     } else {
         c.JSON(http.StatusNotFound, gin.H{
             "error": "No title field data",
@@ -92,8 +95,7 @@ func SearchBookHandler(c *gin.Context) {
     }
 }
 
-func BookDetailHandlerv2(c *gin.Context) {
-    var b moduls.Book
+func (h *bookHandler) BookDetailHandlerv2(c *gin.Context) {
     bookID, err := strconv.Atoi(c.Param("id"))
     if err != nil || bookID <= 0 {
         c.JSON(http.StatusBadRequest, gin.H{
@@ -102,7 +104,7 @@ func BookDetailHandlerv2(c *gin.Context) {
         return
     }
 
-    err = moduls.DB.Debug().Where("id = ?", bookID).First(&b).Error
+    book, err := h.service.FindByID(bookID) 
     if err != nil {
         c.JSON(http.StatusBadRequest, gin.H{
             "error": "Error while finding data",
@@ -110,11 +112,15 @@ func BookDetailHandlerv2(c *gin.Context) {
         return
     }
 
-    c.JSON(http.StatusOK, b)
+    bookResponse := bookToResponse(book)
+
+    c.JSON(http.StatusOK, gin.H{
+        "data": bookResponse,
+    })
 }
 
-func BookUpdateHandler(c *gin.Context) {
-    var b moduls.Book
+func (h *bookHandler) BookUpdateHandler(c *gin.Context) {
+    var bookRequest moduls.BookRequest
 
     bookID, err := strconv.Atoi(c.Param("id"))
     if err != nil || bookID <= 0 {
@@ -124,7 +130,7 @@ func BookUpdateHandler(c *gin.Context) {
         return
     }
 
-    err = c.ShouldBindJSON(&b)
+    err = c.ShouldBindJSON(&bookRequest)
     if err != nil {
         eMsg := []string{}
         for _, e := range err.(validator.ValidationErrors) {
@@ -139,26 +145,27 @@ func BookUpdateHandler(c *gin.Context) {
     }
 
     // Update sesuai dengan nilai (where) book id
-    b.ID = bookID
-    b.UpdatedAt = time.Now()
-    moduls.DB.Updates(&b)
+    b, err := h.service.Update (bookID, bookRequest)
 
     // kirim data json perihal data terkait ke client
-    err = moduls.DB.First(&b, bookID).Error
     if err != nil {
         c.JSON(http.StatusBadRequest, gin.H{
             "error": "Data not found",
         })
         return
     }
+    // Karena struct B tidak berisi ID, maka perlu ditambahkan secara manual
+    b.ID = bookID
+
+    bookResponse := bookToResponse(b)
 
     // return the book data
-    c.JSON(http.StatusOK, b)
+    c.JSON(http.StatusOK, gin.H{
+        "data": bookResponse,
+    })
 }
 
-func BookDeleteHandler(c *gin.Context) {
-    var b moduls.Book
-
+func (h *bookHandler) BookDeleteHandler(c *gin.Context) {
     bookID, err := strconv.Atoi(c.Param("id"))
     if err != nil || bookID <= 0 {
         c.JSON(http.StatusBadRequest, gin.H{
@@ -167,15 +174,15 @@ func BookDeleteHandler(c *gin.Context) {
         return
     }
 
-    moduls.DB.Where("deleted_at IS NULL AND id = ?", bookID).First(&b)
-    if b.ID != bookID {
+    _, err = h.service.FindByID(bookID)
+    if err != nil {
         c.JSON(http.StatusOK, gin.H{
             "info": fmt.Sprintf("Book %d already deleted. Operation canceled.", bookID),
         })
         return
     }
 
-    err = moduls.DB.Delete(&b, bookID).Error
+    err = h.service.Delete(bookID)
     if err != nil {
         c.JSON(http.StatusNoContent, gin.H{
             "error": "Data not found",
@@ -186,6 +193,14 @@ func BookDeleteHandler(c *gin.Context) {
     c.JSON(http.StatusOK, gin.H{
         "book": fmt.Sprintf("Book %d has been deleted.", bookID),
     })
+}
 
-    
+func bookToResponse(b moduls.Book) moduls.BookResponse{
+    return moduls.BookResponse{
+        ID:          b.ID,
+        Title:       b.Title,
+        Description: b.Description,
+        Price:       b.Price,
+        Rating:      b.Rating,
+    }
 }
